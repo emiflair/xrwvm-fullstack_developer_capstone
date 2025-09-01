@@ -58,18 +58,39 @@ app.get('/fetchReviews/dealer/:id', async (req, res) => {
 
 // Express route to fetch all dealerships
 app.get('/fetchDealers', async (req, res) => {
-//Write your code here
-});
-
-// Express route to fetch Dealers by a particular state
-app.get('/fetchDealers/:state', async (req, res) => {
-//Write your code here
-});
-
-// Express route to fetch dealer by a particular id
-app.get('/fetchDealer/:id', async (req, res) => {
-//Write your code here
-});
+    try {
+      const documents = await Dealerships.find();
+      res.json(documents);
+    } catch (error) {
+      console.error('fetchDealers error:', error);
+      res.status(500).json({ error: 'Error fetching documents' });
+    }
+  });
+  
+  // Express route to fetch Dealers by a particular state
+  app.get('/fetchDealers/:state', async (req, res) => {
+    try {
+      const { state } = req.params;
+      const documents = await Dealerships.find({ state });
+      res.json(documents);
+    } catch (error) {
+      console.error('fetchDealers/:state error:', error);
+      res.status(500).json({ error: 'Error fetching documents' });
+    }
+  });
+  
+  // Express route to fetch dealer by a particular id
+  app.get('/fetchDealer/:id', async (req, res) => {
+    try {
+      const idNum = Number(req.params.id);               // dataset uses numeric id
+      const document = await Dealerships.findOne({ id: idNum });
+      if (!document) return res.status(404).json({ error: 'Dealer not found' });
+      res.json(document);
+    } catch (error) {
+      console.error('fetchDealer/:id error:', error);
+      res.status(500).json({ error: 'Error fetching document' });
+    }
+  });  
 
 //Express route to insert review
 app.post('/insert_review', express.raw({ type: '*/*' }), async (req, res) => {
