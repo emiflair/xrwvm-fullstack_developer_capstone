@@ -9,6 +9,7 @@ from django.contrib import messages
 from datetime import datetime
 
 from django.http import JsonResponse
+from .models import CarMake, CarModel
 from django.contrib.auth import login, authenticate
 import logging
 import json
@@ -151,3 +152,20 @@ def register_user(request):
 # Create a `add_review` view to submit a review
 # def add_review(request):
 # ...
+
+
+def get_cars(request):
+    """Return a list of cars (CarModel + CarMake). Populate DB on first call if empty."""
+    if request.method != "GET":
+        return JsonResponse({"detail": "Method not allowed"}, status=405)
+
+    # Seed only once if models are empty
+    if not CarModel.objects.exists():
+        try:
+            initiate()
+        except Exception as e:
+            return JsonResponse({"detail": f"Init failed: {e}"}, status=500)
+
+    car_models = CarModel.objects.select_related("car_make").all()
+    cars = [{"CarModel": cm.name, "CarMake": cm.car_make.name} for cm in car_models]
+    return JsonResponse({"cars": cars})
