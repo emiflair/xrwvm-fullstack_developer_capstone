@@ -115,6 +115,7 @@ def register_user(request):
     password = data.get("password")
     first_name = data.get("first_name") or data.get("firstName") or ""
     last_name  = data.get("last_name")  or data.get("lastName")  or ""
+    email      = data.get("email") or data.get("email") or ""
 
     if not username or not password:
         return JsonResponse({"detail": "username and password are required"}, status=400)
@@ -127,6 +128,7 @@ def register_user(request):
         password=password,
         first_name=first_name,
         last_name=last_name,
+        email=email,
     )
     # Optional: sign the new user in immediately
     login(request, user)
