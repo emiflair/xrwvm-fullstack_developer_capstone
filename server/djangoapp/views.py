@@ -1,5 +1,5 @@
 # Uncomment the required imports before adding the code
-
+from .restapis import get_request, analyze_review_sentiments, post_review
 from django.shortcuts import render
 from django.http import HttpResponseRedirect, HttpResponse
 from django.contrib.auth.models import User
@@ -152,25 +152,20 @@ def get_dealer_reviews(request, dealer_id):
     if not dealer_id:
         return JsonResponse({"status": 400, "message": "Bad Request"})
 
-    # Hit the Node/Mongo API
+    # 1) Get reviews from the Node/Mongo API
     endpoint = f"/fetchReviews/dealer/{dealer_id}"
-    reviews = get_request(endpoint)
+    reviews = get_request(endpoint) or []
 
-    # Optionally augment each review with sentiment
+    # 2) ↙︎ INSERT THIS ENRICHMENT BLOCK HERE
     enriched = []
     if isinstance(reviews, list):
         for r in reviews:
-            sentiment = "neutral"
-            try:
-                text = (r.get("review") or "").strip()
-                if text:
-                    sentiment = analyze_review_sentiments(text)
-            except Exception:
-                # keep "neutral" if analyzer fails
-                pass
-            r["sentiment"] = sentiment
+            txt = (r.get("review") or "").strip()
+            result = analyze_review_sentiments(txt) if txt else {}
+            r["sentiment"] = (result or {}).get("sentiment", "neutral")
             enriched.append(r)
 
+    # 3) Return JSON
     return JsonResponse({"status": 200, "reviews": enriched})
 
 
