@@ -137,14 +137,20 @@ def register_user(request):
     return JsonResponse({"userName": username, "status": "Registered"}, status=201)
 
 
-#Update the `get_dealerships` render list of dealerships all by default, particular state if state is passed
+# Update the `get_dealerships` render list of dealerships all by default, particular state if state is passed
 def get_dealerships(request, state="All"):
-    if(state == "All"):
+    # if ?state=XX is provided, prefer it
+    qs_state = request.GET.get("state")
+    if qs_state:
+        state = qs_state
+
+    if state in (None, "", "All"):
         endpoint = "/fetchDealers"
     else:
-        endpoint = "/fetchDealers/"+state
+        endpoint = f"/fetchDealers/{state}"
+
     dealerships = get_request(endpoint)
-    return JsonResponse({"status":200,"dealers":dealerships})
+    return JsonResponse({"status": 200, "dealers": dealerships})
 
 
 # Create a `get_dealer_reviews` view to render the reviews of a dealer
