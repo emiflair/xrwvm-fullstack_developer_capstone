@@ -132,3 +132,6 @@ dmypy.json
 **/djangoenv/
 **/djagnoenv/
 **/venv/
+
+# Editor swap files
+*.swp
