@@ -188,27 +188,45 @@ def get_dealer_details(request, dealer_id):
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
+from .restapis import post_review   # make sure this import exists
 
 @csrf_exempt
 def add_review(request):
+    # Only POST allowed
     if request.method != "POST":
         return JsonResponse({"status": 405, "message": "Method not allowed"}, status=405)
 
-    # Require a logged-in Django session (keeps the lab requirement)
+    # Lab requires a logged-in Django session
     if not request.user.is_authenticated:
         return JsonResponse({"status": 403, "message": "Unauthorized"}, status=403)
 
+    # Parse JSON body safely
     try:
-        data = json.loads(request.body or "{}")
+        data = json.loads(request.body or b"{}")
     except Exception:
         return JsonResponse({"status": 400, "message": "Invalid JSON"}, status=400)
 
+    # Call backend helper
     try:
         resp = post_review(data)  # your helper that calls the backend service
-        ok = (isinstance(resp, dict) and (resp.get("ok") or resp.get("status") in (200, 201)))
-        return JsonResponse({"status": 200} if ok else {"status": 502, "message": "backend_failed"}, status=200 if ok else 502)
     except Exception as e:
         return JsonResponse({"status": 500, "message": str(e)}, status=500)
+
+    # Treat typical backend success shapes as OK
+    ok = False
+    if isinstance(resp, dict):
+        if resp.get("ok") or resp.get("status") in (200, 201):
+            ok = True
+        elif resp.get("_id") or resp.get("id") or resp.get("insertedId"):
+            ok = True
+        elif resp:   # non-empty dict → assume success (lab backend often returns just the new doc)
+            ok = True
+
+    # Return tolerant 200 on success; 502 so the UI can show an error otherwise
+    if ok:
+        return JsonResponse({"status": 200, "body": resp}, status=200)
+    else:
+        return JsonResponse({"status": 502, "message": "backend_failed", "body": resp}, status=502)
 
 def get_cars(request):
     """Return a list of cars (CarModel + CarMake). Populate DB on first call if empty."""

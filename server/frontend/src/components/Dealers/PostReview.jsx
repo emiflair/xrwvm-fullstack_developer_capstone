@@ -70,45 +70,52 @@ export default function PostReview() {
     }
 
     // "MAKE|MODEL"
-    const [make_chosen, model_chosen] = (model || "").split("|");
+    // prepare payload (you already have these vars defined)
+const [make_chosen, model_chosen] = (model || "").split("|");
+const clientGeneratedId = Math.floor(Date.now() / 1000); // simple unique-ish int
 
-    // many backends require a unique 'id' for inserts
-    const clientGeneratedId = Math.floor(Date.now() / 1000); // simple unique-ish int
+const payload = {
+  id: clientGeneratedId,
+  name,
+  dealership: Number(id),
+  review: review.trim(),
+  purchase: true,
+  purchase_date: date,
+  car_make: make_chosen,
+  car_model: model_chosen,
+  car_year: year,
+};
 
-    const payload = {
-      id: clientGeneratedId,
-      name,
-      dealership: Number(id),
-      review: review.trim(),
-      purchase: true,
-      purchase_date: date,
-      car_make: make_chosen,
-      car_model: model_chosen,
-      car_year: year,
-    };
+try {
+  const res = await fetch(review_url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",     // keep the session cookie
+    body: JSON.stringify(payload),
+  });
 
-    try {
-      const res = await fetch(review_url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+  // some servers return 200 + JSON, others return JSON even on non-200
+  let text = await res.text();
+  let json = {};
+  try { json = JSON.parse(text || "{}"); } catch {}
 
-      // tolerate various success shapes
-      let json = {};
-      try { json = await res.json(); } catch {}
+  const succeeded =
+    res.ok ||
+    json?.status === 200 ||
+    json?.ok === true ||
+    json?._id || json?.id || json?.insertedId;
 
-      if (res.ok && (json.status === 200 || json.status === "ok" || json.ok)) {
-        // redirect back to dealer page; add cache-buster so you see your review immediately
-        window.location.href = `${window.location.origin}/dealer/${id}?t=${Date.now()}`;
-      } else {
-        alert("Posting review failed. Please try again.");
-        console.warn("post review response:", res.status, json);
-      }
-    } catch (e) {
-      alert("Network error while posting review.");
-      console.error(e);
-    }
+  if (succeeded) {
+    // go back to the dealer page and bust cache so the new review shows right away
+    window.location.href = `${window.location.origin}/dealer/${id}?t=${Date.now()}`;
+  } else {
+    alert("Posting review failed. Please try again.");
+    console.warn("post review response", res.status, json, text);
+  }
+} catch (e) {
+  alert("Network error while posting review.");
+  console.error(e);
+}
   };
 
   return (
