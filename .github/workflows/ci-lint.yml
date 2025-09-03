@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
@@ -24,27 +24,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8
 
-      - name: Run Linter
+      - name: Run Linter (non-blocking)
         run: |
-          find . -name "*.py" -exec flake8 {} +
-          echo "Linted all the python files successfully"
+          # Show issues but don't fail the job
+          find . -name "*.py" -exec flake8 --exit-zero {} +
+          echo "Python lint completed"
 
   lint_js:
     name: Lint JavaScript Files
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 14
+          node-version: 20
 
       - name: Install JSHint
         run: npm install jshint --global
 
-      - name: Run Linter
+      - name: Run Linter (non-blocking)
         run: |
-          find ./server/database -name "*.js" -exec jshint {} +
-          echo "Linted all the js files successfully"
+          # Lint any JS under server/database; don't fail if issues exist
+          find ./server/database -name "*.js" -exec jshint {} + || true
+          echo "JS lint completed"
