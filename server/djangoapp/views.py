@@ -185,17 +185,30 @@ def get_dealer_details(request, dealer_id):
         return JsonResponse({"status":400,"message":"Bad Request"})
 
 # Create a `add_review` view to submit a review
-def add_review(request):
-    if(request.user.is_anonymous == False):
-        data = json.loads(request.body)
-        try:
-            response = post_review(data)
-            return JsonResponse({"status":200})
-        except:
-            return JsonResponse({"status":401,"message":"Error in posting review"})
-    else:
-        return JsonResponse({"status":403,"message":"Unauthorized"})
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 
+@csrf_exempt
+def add_review(request):
+    if request.method != "POST":
+        return JsonResponse({"status": 405, "message": "Method not allowed"}, status=405)
+
+    # Require a logged-in Django session (keeps the lab requirement)
+    if not request.user.is_authenticated:
+        return JsonResponse({"status": 403, "message": "Unauthorized"}, status=403)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"status": 400, "message": "Invalid JSON"}, status=400)
+
+    try:
+        resp = post_review(data)  # your helper that calls the backend service
+        ok = (isinstance(resp, dict) and (resp.get("ok") or resp.get("status") in (200, 201)))
+        return JsonResponse({"status": 200} if ok else {"status": 502, "message": "backend_failed"}, status=200 if ok else 502)
+    except Exception as e:
+        return JsonResponse({"status": 500, "message": str(e)}, status=500)
 
 def get_cars(request):
     """Return a list of cars (CarModel + CarMake). Populate DB on first call if empty."""

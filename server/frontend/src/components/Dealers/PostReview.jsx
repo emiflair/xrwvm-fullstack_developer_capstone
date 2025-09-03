@@ -1,47 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import "./Dealers.css";
 import "../assets/style.css";
-import Header from '../Header/Header';
+import Header from "../Header/Header";
 
-const PostReview = () => {
-  const [dealer, setDealer] = useState({});
+export default function PostReview() {
+  const { id } = useParams();
+
+  // UI state
+  const [dealer, setDealer] = useState(null);
   const [review, setReview] = useState("");
-  const [model, setModel] = useState("");         // controlled select
+  const [model, setModel] = useState("");              // stores "MAKE|MODEL"
   const [year, setYear] = useState("");
   const [date, setDate] = useState("");
   const [carmodels, setCarmodels] = useState([]);
 
-  const params = useParams();
-  const id = params.id;
+  // API endpoints (no window.location slicing)
+  const dealer_url    = `/djangoapp/dealer/${id}/`;
+  const review_url    = `/djangoapp/add_review/`;
+  const carmodels_url = `/djangoapp/get_cars/`;
 
-  // base URL in a safer way
-  const root = window.location.origin + "/";
-
-  // NOTE: trailing slashes matter with your Django settings
-  const dealer_url    = `${root}djangoapp/dealer/${id}/`;
-  const review_url    = `${root}djangoapp/add_review/`;
-  const carmodels_url = `${root}djangoapp/get_cars/`;
-
-  const postreview = async () => {
-    let name =
-      (sessionStorage.getItem("firstname") || "") +
-      " " +
-      (sessionStorage.getItem("lastname") || "");
-    name = name.trim();
+  // ---- helpers ----
+  const getNameFromSession = () => {
+    const fn = sessionStorage.getItem("firstname") || "";
+    const ln = sessionStorage.getItem("lastname") || "";
+    let name = `${fn} ${ln}`.trim();
     if (!name || name.toLowerCase().includes("null")) {
       name = sessionStorage.getItem("username") || "Anonymous";
     }
-  
-    if (!model || review.trim() === "" || date === "" || year === "") {
+    return name;
+  };
+
+  // ---- data loads ----
+  const get_dealer = async () => {
+    try {
+      const res = await fetch(dealer_url);
+      const data = await res.json();
+      const list = Array.isArray(data.dealer) ? data.dealer : data.dealer ? [data.dealer] : [];
+      setDealer(list[0] || null);
+    } catch (e) {
+      console.error("dealer fetch error:", e);
+    }
+  };
+
+  const get_cars = async () => {
+    try {
+      const res = await fetch(carmodels_url, { method: "GET" });
+      const data = await res.json();
+      // backend returns { cars: [...] }
+      const list = Array.isArray(data.cars) ? data.cars : [];
+      setCarmodels(list);
+    } catch (e) {
+      console.error("car models fetch error:", e);
+    }
+  };
+
+  useEffect(() => {
+    get_dealer();
+    get_cars();
+  }, [id]);
+
+  // ---- submit ----
+  const postreview = async () => {
+    const name = getNameFromSession();
+
+    if (!model || review.trim() === "" || !date || !year) {
       alert("All details are mandatory");
       return;
     }
-  
-    // model comes in as "MAKE|MODEL"
-    const [make_chosen, model_chosen] = model.split("|");
-  
+
+    // "MAKE|MODEL"
+    const [make_chosen, model_chosen] = (model || "").split("|");
+
+    // many backends require a unique 'id' for inserts
+    const clientGeneratedId = Math.floor(Date.now() / 1000); // simple unique-ish int
+
     const payload = {
+      id: clientGeneratedId,
       name,
       dealership: Number(id),
       review: review.trim(),
@@ -51,73 +86,38 @@ const PostReview = () => {
       car_model: model_chosen,
       car_year: year,
     };
-  
+
     try {
       const res = await fetch(review_url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-  
-      // Try to parse JSON, but don't rely on it existing
-      let body = {};
-      try {
-        body = await res.clone().json();
-      } catch (_) {
-        /* non-JSON or empty body */
+
+      // tolerate various success shapes
+      let json = {};
+      try { json = await res.json(); } catch {}
+
+      if (res.ok && (json.status === 200 || json.status === "ok" || json.ok)) {
+        // redirect back to dealer page; add cache-buster so you see your review immediately
+        window.location.href = `${window.location.origin}/dealer/${id}?t=${Date.now()}`;
+      } else {
+        alert("Posting review failed. Please try again.");
+        console.warn("post review response:", res.status, json);
       }
-  
-      if (res.ok || body.status === 200) {
-        window.location.href = `${window.location.origin}/dealer/${id}`;
-        return;
-      }
-  
-      // Not ok: show some detail if we have it
-      const errText = await res.text().catch(() => "");
-      console.error("add_review failed:", res.status, body, errText);
-      alert("Posting review failed. Please try again.");
     } catch (e) {
-      console.error("Network error while posting review:", e);
       alert("Network error while posting review.");
-    }
-  };  
-
-  const get_dealer = async () => {
-    try {
-      const res = await fetch(dealer_url, { method: "GET" });
-      const retobj = await res.json();
-      if (retobj.status === 200) {
-        const dealerobjs = Array.from(retobj.dealer || []);
-        if (dealerobjs.length > 0) setDealer(dealerobjs[0]);
-      }
-    } catch (e) {
-      // optionally show a toast
+      console.error(e);
     }
   };
-
-  const get_cars = async () => {
-    try {
-      const res = await fetch(carmodels_url, { method: "GET" });
-      const retobj = await res.json();
-      const carmodelsarr = Array.from(retobj.cars || retobj.CarModels || []);
-      setCarmodels(carmodelsarr);
-    } catch (e) {
-      setCarmodels([]);
-    }
-  };
-
-  useEffect(() => {
-    get_dealer();
-    get_cars();
-  }, [id]); // re-run if id changes
-
-  const currentYear = new Date().getFullYear();
 
   return (
     <div>
       <Header />
       <div style={{ margin: "5%" }}>
-        <h1 style={{ color: "darkblue" }}>{dealer.full_name}</h1>
+        <h1 style={{ color: "darkblue" }}>
+          {dealer ? dealer.full_name : "Loading dealer..."}
+        </h1>
 
         <textarea
           id="review"
@@ -143,12 +143,9 @@ const PostReview = () => {
             <option value="" disabled hidden>
               Choose Car Make and Model
             </option>
-            {carmodels.map((cm, idx) => (
-              <option
-                key={`${cm.CarMake}-${cm.CarModel}-${idx}`}
-                value={`${cm.CarMake}|${cm.CarModel}`}
-              >
-                {cm.CarMake} {cm.CarModel}
+            {carmodels.map((c, idx) => (
+              <option key={`${c.CarMake}-${c.CarModel}-${idx}`} value={`${c.CarMake}|${c.CarModel}`}>
+                {c.CarMake} {c.CarModel}
               </option>
             ))}
           </select>
@@ -160,8 +157,8 @@ const PostReview = () => {
             type="number"
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            max={currentYear}
-            min={2015}
+            max={new Date().getFullYear()}
+            min={2010}
           />
         </div>
 
@@ -173,6 +170,4 @@ const PostReview = () => {
       </div>
     </div>
   );
-};
-
-export default PostReview;
+}
