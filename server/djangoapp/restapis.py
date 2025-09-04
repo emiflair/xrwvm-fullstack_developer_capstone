@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BACKEND_URL = os.getenv('backend_url', 'http://localhost:3030').rstrip('/')
-SENT_URL    = os.getenv('sentiment_analyzer_url', 'http://localhost:5050/').rstrip('/') + '/'
+BACKEND_URL = os.getenv('backend_url', 'https://emifeaustin0-3030.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai').rstrip('/')
+SENT_URL    = os.getenv('sentiment_analyzer_url', 'https://emifeaustin0-5050.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai').rstrip('/') + '/'
 
 def get_request(endpoint, **params):
     """GET to the Node/Mongo backend."""
