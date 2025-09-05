@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dealership
+  labels:
+    run: dealership
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: dealership
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        run: dealership
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: dealership
+          image: us.icr.io/sn-labs-emifeaustin0/dealership:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              protocol: TCP

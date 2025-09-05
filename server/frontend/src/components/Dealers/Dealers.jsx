@@ -1,44 +1,57 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import "./Dealers.css";
 import "../assets/style.css";
-import Header from '../Header/Header';
+import Header from "../Header/Header";
 import review_icon from "../assets/reviewicon.png";
 
 const Dealers = () => {
   const [dealersList, setDealersList] = useState([]);
   const [states, setStates] = useState([]);
 
-  // NOTE: trailing slash matters
-  const dealersRoot = "/djangoapp/get_dealers/"; 
+  // If your Django route is /djangoapp/get_dealerships/, change it here.
+  const dealersRoot = "/djangoapp/get_dealers/"; // trailing slash matters
 
   const fetchDealers = async (state) => {
-    // Use query param (matches your Django view)
-    const url = (state && state !== "All")
-      ? `${dealersRoot}?state=${encodeURIComponent(state)}`
-      : dealersRoot;
+    try {
+      const url =
+        state && state !== "All"
+          ? `${dealersRoot}?state=${encodeURIComponent(state)}`
+          : dealersRoot;
 
-    const res = await fetch(url, { method: "GET" });
-    const ret = await res.json();
+      const res = await fetch(url, { method: "GET" });
+      const ret = await res.json();
 
-    if (ret.status === 200 && Array.isArray(ret.dealers)) {
-      const all = ret.dealers;
-      setDealersList(all);
-      // build the state list from data
-      setStates([...new Set(all.map(d => d.state))].sort());
-    } else {
+      // Normalize the payload (either {status, dealers: []} or just [])
+      const all = Array.isArray(ret?.dealers)
+        ? ret.dealers
+        : Array.isArray(ret)
+        ? ret
+        : [];
+
+      if (ret?.status === 200 || Array.isArray(ret)) {
+        setDealersList(all);
+        setStates(
+          [...new Set(all.map((d) => d.state).filter(Boolean))].sort()
+        );
+      } else {
+        setDealersList([]);
+      }
+    } catch (e) {
+      console.error("Failed to fetch dealers:", e);
       setDealersList([]);
     }
   };
 
-  useEffect(() => { fetchDealers(); }, []);  // initial load
+  useEffect(() => {
+    fetchDealers();
+  }, []);
 
   const onStateChange = (e) => fetchDealers(e.target.value);
-
   const isLoggedIn = sessionStorage.getItem("username") != null;
 
   return (
     <div>
-      <Header/>
+      <Header />
       <table className="table">
         <thead>
           <tr>
@@ -48,20 +61,33 @@ const Dealers = () => {
             <th>Address</th>
             <th>Zip</th>
             <th>
-              <select name="state" id="state" defaultValue="" onChange={onStateChange}>
-                <option value="" disabled hidden>State</option>
+              <select
+                name="state"
+                id="state"
+                defaultValue=""
+                onChange={onStateChange}
+              >
+                <option value="" disabled hidden>
+                  State
+                </option>
                 <option value="All">All States</option>
-                {states.map(s => <option key={s} value={s}>{s}</option>)}
+                {states.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </select>
-            </th>````````
+            </th>
             {isLoggedIn ? <th>Review Dealer</th> : null}
           </tr>
         </thead>
         <tbody>
-          {dealersList.map(dealer => (
+          {dealersList.map((dealer) => (
             <tr key={dealer.id}>
               <td>{dealer.id}</td>
-              <td><a href={`/dealer/${dealer.id}`}>{dealer.full_name}</a></td>
+              <td>
+                <a href={`/dealer/${dealer.id}`}>{dealer.full_name}</a>
+              </td>
               <td>{dealer.city}</td>
               <td>{dealer.address}</td>
               <td>{dealer.zip}</td>
@@ -69,7 +95,11 @@ const Dealers = () => {
               {isLoggedIn ? (
                 <td>
                   <a href={`/postreview/${dealer.id}`}>
-                    <img src={review_icon} className="review_icon" alt="Post Review"/>
+                    <img
+                      src={review_icon}
+                      className="review_icon"
+                      alt="Post Review"
+                    />
                   </a>
                 </td>
               ) : null}

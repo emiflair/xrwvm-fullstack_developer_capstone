@@ -1,5 +1,5 @@
-requests
 Django
-Pillow
 gunicorn
+djangorestframework
+requests
 python-dotenv
