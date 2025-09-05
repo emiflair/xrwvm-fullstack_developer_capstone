@@ -1,14 +1,25 @@
-# Uncomment the imports below before you add the function code
 # restapis.py
 import os
 import requests
 from urllib.parse import urlencode, quote_plus
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+# --- Load .env that sits next to this file ---
+DOTENV_PATH = Path(__file__).with_name(".env")
+load_dotenv(dotenv_path=DOTENV_PATH, override=True)
 
-BACKEND_URL = os.getenv('backend_url', 'https://emifeaustin0-3030.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai').rstrip('/')
-SENT_URL    = os.getenv('sentiment_analyzer_url', 'https://emifeaustin0-5050.theiadockernext-0-labs-prod-theiak8s-4-tor01.proxy.cognitiveclass.ai').rstrip('/') + '/'
+# --- Read env vars by NAME (must match keys in .env) ---
+BACKEND_URL = os.getenv("backend_url", "").strip().rstrip("/")
+SENT_URL    = os.getenv("sentiment_analyzer_url", "").strip().rstrip("/") + "/"
+
+# Fail fast if missing
+assert BACKEND_URL, "backend_url is not set in server/djangoapp/.env"
+assert SENT_URL.strip("/"), "sentiment_analyzer_url is not set in server/djangoapp/.env"
+
+print("[restapis] BACKEND_URL =", BACKEND_URL)
+print("[restapis] SENT_URL    =", SENT_URL)
+
 
 def get_request(endpoint, **params):
     """GET to the Node/Mongo backend."""
@@ -24,6 +35,7 @@ def get_request(endpoint, **params):
         print("Network exception occurred:", e)
         return None
 
+
 def analyze_review_sentiments(text: str):
     """GET to the sentiment analyzer microservice."""
     url = f"{SENT_URL}analyze/{quote_plus(text or '')}"
@@ -35,6 +47,7 @@ def analyze_review_sentiments(text: str):
         print("Network exception occurred:", e)
         return {"sentiment": "neutral"}
 
+
 def post_review(data_dict: dict):
     """POST a review to the backend."""
     url = f"{BACKEND_URL}/insert_review"
@@ -45,6 +58,3 @@ def post_review(data_dict: dict):
     except Exception as e:
         print("Network exception occurred:", e)
         return {"status": "error"}
-
-
-# Add code for posting review
